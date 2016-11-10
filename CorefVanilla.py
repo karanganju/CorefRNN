@@ -15,6 +15,7 @@ WP_WIDTH = 700
 FL_PENALTY = 0.1
 FN_PENALTY = 0.1
 WL_PENALTY = 0.1
+LEARNING_RATE = 0.5
 
 
 # Get training and test data
@@ -26,9 +27,10 @@ phia_tr_data = np.empty((TRAINING_SIZE, PHIA_FEATURE_LEN))
 
 
 # Inputs/Placeholders (assuming we train one mention at a time)
+# Here phia/p are the feature embeddings while Y is the best antecedent (or should we take cluster instead? - depends on output)
 Phia_x = tf.placeholder(tf.float32, [1, PHIA_FEATURE_LEN])
 Phip_x = tf.placeholder(tf.float32, [TRAINING_SIZE, PHIP_FEATURE_LEN])
-Y = tf.placeholder(tf.int32, [1])
+Y_antecedent = tf.placeholder(tf.int32, [1])
 
 # Variables/Parameters
 W_a = tf.Variable(tf.random_uniform([PHIA_FEATURE_LEN, WA_WIDTH]))
@@ -49,7 +51,7 @@ l_p_concat = tf.concat(1, l_a_tiled, l_p)
 
 
 # Fill best antecedent using max and all
-f_x_ana = tf.matmul(tf.nn.tanh(l_p_concat), u) + tf.fill([TRAINING_SIZE, 1], b_u)
+f_x_ana = tf.add(tf.matmul(tf.nn.tanh(l_p_concat), u), tf.fill([TRAINING_SIZE, 1], b_u))
 f_x_nonana = tf.add(tf.matmul(tf.nn.tanh(l_a), v), b_v)
 
 # Get argmax and max of ana and nonana f_x concatenated
@@ -58,21 +60,20 @@ best_ant = tf.argmax(f_x, 0)
 f_x_best = tf.reduce_max(f_x, 0)
 
 # Get this somehow from Y
-# f_y_latent = tf.
+f_y_latent = tf.gather(tf.gather(f_x, Y_antecedent),0)
 
-loss = 
+loss_multiplier = tf.select(tf.equal(Y_antecedent,tf.constant(0)), tf.constant(FL_PENALTY), tf.select(tf.equal(best_ant, tf.constant(0)),tf.constant(FN_PENALTY),tf.constant(WL_PENALTY)))
+loss_factor = tf.select(tf.equal(Y_antecedent,best_ant), tf.constant(0), loss_multiplier) 
 
+loss = tf.mul(tf.add(tf.constant(1), tf.sub(f_x_best, f_y_latent)), loss_factor)
+train_op = tf.train.GradientDescentOptimizer(LEARNING_RATE).minimize(loss)
 
 # Train model
 with tf.Session() as sess:
+	sess.run(tf.initialize_all_variables())
+	for i in range(TRAINING_SIZE):
+		sess.run(train_op, feed_dict={Phia_x: ,Phip_x: ,Y_antecedent: })
 
-
-# Things to Do
-# 1. Data Retrieval 
-# 4. Use y to get latent antecedents - after we get data
-# 5. Write out loss function - figure out
-# 6. Write out training and run the session - after we get data
-# 7. Buy beer for apartment
 
 # Questions? 
 # We are training one sample at a time right? No batches here?
