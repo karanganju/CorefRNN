@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import h5py as h5
 
 # This is a test run generating only 
 # o local mention ranking-based clusters (no global cluster evel features) 
@@ -21,6 +22,7 @@ LEARNING_RATE = 0.5
 # Get training and test data
 phip_tr_data = np.empty((TRAINING_SIZE, TRAINING_SIZE, PHIP_FEATURE_LEN))
 phia_tr_data = np.empty((TRAINING_SIZE, PHIA_FEATURE_LEN))
+OPC_data = np.empty(())
 
 
 # Build Model for Local Mention Ranking
@@ -30,7 +32,8 @@ phia_tr_data = np.empty((TRAINING_SIZE, PHIA_FEATURE_LEN))
 # Here phia/p are the feature embeddings while Y is the best antecedent (or should we take cluster instead? - depends on output)
 Phia_x = tf.placeholder(tf.float32, [1, PHIA_FEATURE_LEN])
 Phip_x = tf.placeholder(tf.float32, [TRAINING_SIZE, PHIP_FEATURE_LEN])
-Y_antecedent = tf.placeholder(tf.int32, [1])
+# Y_antecedent array has True where it belongs to the same cluster and False otherwise
+Y_antecedent = tf.placeholder(tf.float32, [TRAINING_SIZE + 1, 1])
 
 # Variables/Parameters
 W_a = tf.Variable(tf.random_uniform([PHIA_FEATURE_LEN, WA_WIDTH]))
@@ -59,11 +62,13 @@ f_x = tf.concat(0, tf.fill([1,1], f_x_nonana) ,f_x_ana)
 best_ant = tf.argmax(f_x, 0)
 f_x_best = tf.reduce_max(f_x, 0)
 
-# Get this somehow from Y
-f_y_latent = tf.gather(tf.gather(f_x, Y_antecedent),0)
+# Assign value to Y_antecedent somehow
+f_x_reduced = tf.matmul(f_x, Y_antecedent)
+f_y_latent = tf.reduce_max(f_x_reduced,0)
+y_latent = tf.argmax(f_x_reduced,0)
 
-loss_multiplier = tf.select(tf.equal(Y_antecedent,tf.constant(0)), tf.constant(FL_PENALTY), tf.select(tf.equal(best_ant, tf.constant(0)),tf.constant(FN_PENALTY),tf.constant(WL_PENALTY)))
-loss_factor = tf.select(tf.equal(Y_antecedent,best_ant), tf.constant(0), loss_multiplier) 
+loss_multiplier = tf.select(tf.equal(y_latent,tf.constant(0)), tf.constant(FL_PENALTY), tf.select(tf.equal(best_ant, tf.constant(0)),tf.constant(FN_PENALTY),tf.constant(WL_PENALTY)))
+loss_factor = tf.select(tf.equal(y_latent,best_ant), tf.constant(0), loss_multiplier) 
 
 loss = tf.mul(tf.add(tf.constant(1), tf.sub(f_x_best, f_y_latent)), loss_factor)
 train_op = tf.train.GradientDescentOptimizer(LEARNING_RATE).minimize(loss)
@@ -73,7 +78,3 @@ with tf.Session() as sess:
 	sess.run(tf.initialize_all_variables())
 	for i in range(TRAINING_SIZE):
 		sess.run(train_op, feed_dict={Phia_x: ,Phip_x: ,Y_antecedent: })
-
-
-# Questions? 
-# We are training one sample at a time right? No batches here?
