@@ -1,6 +1,18 @@
 import tensorflow as tf
 import numpy as np
 import h5py as h5
+import csv
+
+def getClustersArrayForMentions():
+	f = open('mentionsList.txt', 'r')
+	csvreader = csv.reader(f, delimiter=' ')
+	mylist = []
+	for row in csvreader:
+		mylist.append(int(row[1]))
+
+	myarray = np.array(mylist)
+	print myarray
+	return myarray
 
 # This is a test run generating only 
 # o local mention ranking-based clusters (no global cluster evel features) 
@@ -10,7 +22,7 @@ import h5py as h5
 # Config Variables
 PHIA_FEATURE_LEN = 10
 PHIP_FEATURE_LEN = 10
-TRAINING_SIZE = 100
+TRAINING_SIZE = 1253
 WA_WIDTH = 128
 WP_WIDTH = 700
 FL_PENALTY = 0.1
@@ -22,8 +34,8 @@ LEARNING_RATE = 0.5
 # Get training and test data
 phip_tr_data = np.empty((TRAINING_SIZE, TRAINING_SIZE, PHIP_FEATURE_LEN))
 phia_tr_data = np.empty((TRAINING_SIZE, PHIA_FEATURE_LEN))
-# OPC_data = np.empty(())
-
+cluster_data = getClustersArrayForMentions()
+mask_arr = np.zeros(TRAINING_SIZE)
 
 # Build Model for Local Mention Ranking
 
@@ -77,5 +89,12 @@ train_op = tf.train.GradientDescentOptimizer(LEARNING_RATE).minimize(loss)
 with tf.Session() as sess:
 	sess.run(tf.initialize_all_variables())
 	for i in range(TRAINING_SIZE):
+
+		latent_antecedents = np.multiply(np.logical_not(cluster_data - cluster_data[i]).astype(np.int), mask_arr)
+		latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents)
+		# print i, latent_antecedents
+
 		sess.run(train_op, feed_dict={Phia_x: np.random.rand(1, PHIA_FEATURE_LEN),Phip_x: np.random.rand(TRAINING_SIZE, PHIP_FEATURE_LEN),Y_antecedent: np.random.rand(1, TRAINING_SIZE + 1)})	
 		print(sess.run(best_ant, feed_dict={Phia_x: np.random.rand(1, PHIA_FEATURE_LEN),Phip_x: np.random.rand(TRAINING_SIZE, PHIP_FEATURE_LEN),Y_antecedent: np.random.rand(1, TRAINING_SIZE + 1)}))
+		
+		mask_arr[i] = 1
