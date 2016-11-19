@@ -22,7 +22,10 @@ def Word2VecModel(File, min_count = 1, size = 200, window = 5):
     model = Word2Vec(words, size=size, window=window, min_count=min_count)
     return model
 
-def getMentionFeats(MentionFile, model):
+def getMentionFeats(MentionFile, WordsFile, min_count, size, window):
+
+    model = Word2VecModel(WordsFile, min_count, size, window)
+
     file = open(MentionFile, "r")
     mentions = []
     mentionFeats = []
@@ -41,7 +44,7 @@ def getMentionFeats(MentionFile, model):
     file.close()
     return mentionFeats
 
-def getPairFeats(idx,mentionFeats):
+def getPairFeats(idx,mentionFeats,size):
     PairwiseFeats = np.zeros((len(mentionFeats), size))
     for pidx in range(0,idx):
         feat1 = mentionFeats[idx][1]
@@ -51,13 +54,12 @@ def getPairFeats(idx,mentionFeats):
     return PairwiseFeats
 
 
-if __name__ == '__main__':
-    min_count = 1
-    size = 200
-    window = 5
+# if __name__ == '__main__':
+#     min_count = 1
+#     size = 200
+#     window = 5
 
-    model = Word2VecModel("wordsList.txt",min_count,size,window)
-    mentionFeats = getMentionFeats("mentionsList.txt",model)
+#     mentionFeats = getMentionFeats("mentionsList.txt","wordsList.txt",min_count,size,window)
 
-    for idx in range(len(mentionFeats)):
-        PairwiseFeats = getPairFeats(idx,mentionFeats)
+#     for idx in range(len(mentionFeats)):
+#         print getPairFeats(idx,mentionFeats)
