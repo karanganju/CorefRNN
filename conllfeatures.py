@@ -2,63 +2,62 @@ from gensim.models import Word2Vec
 import csv
 import numpy as np
 
-mentionFeats = []
-PairwiseFeats = []
+def Word2VecModel(File, min_count = 1, size = 200, window = 5):
+    file = open(File, "r")
+    words = []
+    sent = []
+    for line in file:
+        line = line.strip()
+        line = line.replace("_"," ")
+        if line == ".":
+            words.append(sent)
+            sent = []
+        else:
+            sent.append(line)
+    file.close()
 
-file = open("wordsList.txt", "r")
-words = []
-sent = []
-for line in file:
-    line = line.strip()
-    line = line.replace("_"," ")
-    if line == ".":
+    if len(sent) != 0:
         words.append(sent)
-        sent = []
-    else:
-        sent.append(line)
-file.close()
 
-if len(sent) != 0:
-    words.append(sent)
-#print(words)
+    model = Word2Vec(words, size=size, window=window, min_count=min_count)
+    return model
 
-min_count = 1
-size = 200
-window = 5
-model = Word2Vec(words, size=size, window=window, min_count=min_count)
+def getMentionFeats(MentionFile, model):
+    file = open(MentionFile, "r")
+    mentions = []
+    mentionFeats = []
+    flag = 0
+    for line in file:
+        line = line.strip()
+        line = line.split(" ")
+        line = line[0]
+        line = line.replace("_"," ")
+        mentions.append(line)
+        if flag == 1:
+            mentionFeats = np.vstack((mentionFeats,model[line]))
+        else:
+            mentionFeats.append(model[line])
+            flag = 1
+    file.close()
+    return mentionFeats
 
-WordVocab = [k for (k, v) in model.vocab.items()]
-#print(WordVocab)
+def getPairFeats(idx,mentionFeats):
+    PairwiseFeats = np.zeros((len(mentionFeats), size))
+    for pidx in range(0,idx):
+        feat1 = mentionFeats[idx][1]
+        feat2 = mentionFeats[pidx][1]
+        dist = feat1 - feat2
+        PairwiseFeats[pidx] = dist
+    return PairwiseFeats
 
-file = open("mentionsList.txt", "r")
-mentions = []
-idx = 0
-for line in file:
-    line = line.strip()
-    line = line.split(" ")
-    line = line[0]
-    line = line.replace("_"," ")
-    mentions.append(line)
-    mentionFeats.append((idx,model[line]))
-file.close()
 
-# for idx in range(len(mentionFeats)-1):
-#     for pidx in range(idx+1,len(mentionFeats)):
-#         feat1 = mentionFeats[idx][1]
-#         feat2 = mentionFeats[pidx][1]+
-#         dist = feat1 - feat2
-#         PairwiseFeats.append((idx,pidx,dist))
+if __name__ == '__main__':
+    min_count = 1
+    size = 200
+    window = 5
 
-def getClustersArrayForMentions():
-	f = open('mentionsList.txt', 'r')
-	csvreader = csv.reader(f, delimiter=' ')
-	mylist = []
-	for row in csvreader:
-		mylist.append(row[1])
+    model = Word2VecModel("wordsList.txt",min_count,size,window)
+    mentionFeats = getMentionFeats("mentionsList.txt",model)
 
-	myarray = np.array(mylist)
-	return myarray
-#endDef
-
-print(getClustersArrayForMentions())
-
+    for idx in range(len(mentionFeats)):
+        PairwiseFeats = getPairFeats(idx,mentionFeats)
