@@ -96,9 +96,9 @@ with tf.Session() as sess:
 	for i in range(TRAINING_SIZE):
 
 		latent_antecedents = np.multiply(np.logical_not(cluster_data - cluster_data[i]).astype(np.int), mask_arr)
-		latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents)
+		latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents).reshape([1,TRAINING_SIZE + 1])
 
-		sess.run(train_op, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: np.random.rand(1, TRAINING_SIZE + 1)})	
+		sess.run(train_op, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents})	
 		# print(sess.run(best_ant, feed_dict={Phia_x: np.random.rand(1, PHIA_FEATURE_LEN),Phip_x: np.random.rand(TRAINING_SIZE, PHIP_FEATURE_LEN),Y_antecedent: np.random.rand(1, TRAINING_SIZE + 1)}))
 
 		mask_arr[i] = 1
@@ -110,9 +110,9 @@ with tf.Session() as sess:
 	for i in range(TRAINING_SIZE):
 
 		latent_antecedents = np.multiply(np.logical_not(cluster_data - cluster_data[i]).astype(np.int), mask_arr)
-		latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents)
+		latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents).reshape([1,TRAINING_SIZE + 1])
 
-		print(i, sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: np.random.rand(1, TRAINING_SIZE + 1)}))
+		print(i, sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents}))
 		# print(sess.run(best_ant, feed_dict={Phia_x: np.random.rand(1, PHIA_FEATURE_LEN),Phip_x: np.random.rand(TRAINING_SIZE, PHIP_FEATURE_LEN),Y_antecedent: np.random.rand(1, TRAINING_SIZE + 1)}))
 
 		mask_arr[i] = 1
