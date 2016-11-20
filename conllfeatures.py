@@ -47,8 +47,8 @@ def getMentionFeats(MentionFile, WordsFile, min_count, size, window):
 def getPairFeats(idx,mentionFeats,size):
     PairwiseFeats = np.zeros((len(mentionFeats), size))
     for pidx in range(0,idx):
-        feat1 = mentionFeats[idx][1]
-        feat2 = mentionFeats[pidx][1]
+        feat1 = mentionFeats[idx]
+        feat2 = mentionFeats[pidx]
         dist = feat1 - feat2
         PairwiseFeats[pidx] = dist
     return PairwiseFeats
