@@ -99,7 +99,7 @@ def getPairFeats(idx,mentionFeats,size):
         feat2 = mentionFeats[pidx]
         dist = feat1 - feat2
         PairwiseFeats[pidx] = dist
-        print(dist)
+        # print(dist)
     return PairwiseFeats
 
 
