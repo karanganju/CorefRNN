@@ -83,6 +83,7 @@ def getMentionFeats2(MentionFile, WordsFile, min_count, size, window):
         flag = 0
         for word in line:
             total += model[word]
+        total =  total/len(line)
         if flag == 1:
             mentionFeats = np.vstack((mentionFeats,total))
         else:
