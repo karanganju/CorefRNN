@@ -93,7 +93,7 @@ def getMentionFeats2(MentionFile, WordsFile, min_count, size, window):
     return mentionFeats
 
 def getPairFeats(idx,mentionFeats,size):
-    PairwiseFeats = np.zeros((len(mentionFeats), size))
+    PairwiseFeats = np.zeros((idx, size))
     for pidx in range(0,idx):
         feat1 = mentionFeats[idx]
         feat2 = mentionFeats[pidx]
@@ -103,12 +103,11 @@ def getPairFeats(idx,mentionFeats,size):
     return PairwiseFeats
 
 
-if __name__ == '__main__':
-    min_count = 1
-    size = 200
-    window = 5
-
-    mentionFeats = getMentionFeats2("mentionsList.txt","wordsList.txt",min_count,size,window)
-
-    for idx in range(len(mentionFeats)):
-        print(getPairFeats(idx,mentionFeats,size))
+def getClustersArrayForMentions(mentionfile):
+    f = open(mentionfile, 'r')
+    csvreader = csv.reader(f, delimiter=' ')
+    mylist = []
+    for row in csvreader:
+        mylist.append(int(row[1]))
+    myarray = np.array(mylist)
+    return myarray
