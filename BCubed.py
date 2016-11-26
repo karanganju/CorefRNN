@@ -82,5 +82,5 @@ def BCubedF1(cluster_OPC, cluster_pred):
 	return 2*recall*precision/(recall+precision), recall, precision
 
 # Test Case
-# cluster_OPC = [1,1,1,1,1,2,2,3,2,4,5,2,2,2]
+# cluster_OPC = [0,0,0,0,0,1,1,2,1,3,4,1,1,1]
 # cluster_pred = [0,1,1,1,0,5,5,0,8,8,8,8,8,8]
