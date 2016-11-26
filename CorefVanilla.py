@@ -15,13 +15,13 @@ WP_WIDTH = 128
 FL_PENALTY = 0.5
 FN_PENALTY = 1.2
 WL_PENALTY = 1
-LEARNING_RATE = 0.01
+LEARNING_RATE = 0.05
 W2V_MIN_COUNT = 1
 W2V_SIZE = 200
 W2V_WINDOW = 5
 ITERATION_COUNT = 1
 DATA_DIR = "./Data/"
-NUM_FILES = 1
+NUM_FILES = -1
 
 opts, args = getopt.getopt(sys.argv[1:],"n:l:d:f:",[])
 for opt, arg in opts:
@@ -33,6 +33,10 @@ for opt, arg in opts:
 		DATA_DIR = arg
 	elif opt == '-f':
 		NUM_FILES = int(arg)
+
+wordfiles = filter(lambda filename:  filename.endswith('wordsList.txt') , listdir(DATA_DIR))
+if (NUM_FILES == -1):
+	NUM_FILES = len(wordfiles)
 
 # Build Model for Local Mention Ranking
 # Inputs/Placeholders (assuming we train one mention at a time)
@@ -88,11 +92,13 @@ with tf.Session() as sess:
 	sess.run(tf.initialize_all_variables())
 	for file_num in range(NUM_FILES):
 
-		mentionFile = DATA_DIR + 'mentionsList' + str(file_num+1) + '.txt'
-		wordFile = DATA_DIR + 'wordsList' + str(file_num+1) + '.txt'
+		wordFile = DATA_DIR + wordfiles[file_num]
+		mentionFile = wordFile.replace("wordsList", "mentionsList")
+		print wordFile
 		
 		cluster_data = getClustersArrayForMentions(mentionFile)
 		mentionFeats = getMentionFeats2(mentionFile,wordFile,W2V_MIN_COUNT,W2V_SIZE,W2V_WINDOW)
+
 
 		TRAINING_SIZE = len(cluster_data)
 
@@ -115,7 +121,7 @@ with tf.Session() as sess:
 				# print(i+1, sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents, mask: np.append([[1]],mask_arr).reshape([TRAINING_SIZE + 1,1])}))
 				
 				cluster_pred[i] = np.array(sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents}))
-				
+			
 			print BCubedF1(cluster_pred, cluster_data)
 			# 	if (iteration_count == ITERATION_COUNT -1):
 			# 		print i+1, ant
