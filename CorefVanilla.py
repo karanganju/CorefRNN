@@ -1,58 +1,49 @@
 import tensorflow as tf
 import numpy as np
-import h5py as h5
-import csv
-from conllfeatures import getMentionFeats2
-from conllfeatures import getPairFeats
 import sys
-
-def getClustersArrayForMentions():
-	f = open('mentionsList.txt', 'r')
-	csvreader = csv.reader(f, delimiter=' ')
-	mylist = []
-	for row in csvreader:
-		mylist.append(int(row[1]))
-
-	myarray = np.array(mylist)
-	return myarray
-
-# This is a test run generating only 
-# o local mention ranking-based clusters (no global cluster evel features) 
-# o using an end-to-end NN (no training on subtasks)
-# o 2 layer model (g is the identity function)
+import getopt
+from conllfeatures import *
+from BCubed import BCubedF1
+from os import listdir
+from os.path import isfile, join
 
 # Config Variables
 PHIA_FEATURE_LEN = 200
 PHIP_FEATURE_LEN = 200
-TRAINING_SIZE = 1253
 WA_WIDTH = 128
 WP_WIDTH = 128
 FL_PENALTY = 0.5
 FN_PENALTY = 1.2
 WL_PENALTY = 1
-LEARNING_RATE = float(sys.argv[2])
+LEARNING_RATE = 0.01
 W2V_MIN_COUNT = 1
 W2V_SIZE = 200
 W2V_WINDOW = 5
+ITERATION_COUNT = 1
+DATA_DIR = "./Data/"
+NUM_FILES = 1
 
-
-# Get training and test data
-# phip_tr_data = np.empty((TRAINING_SIZE, TRAINING_SIZE, PHIP_FEATURE_LEN))
-# phia_tr_data = np.empty((TRAINING_SIZE, PHIA_FEATURE_LEN))
-cluster_data = getClustersArrayForMentions()
-mask_arr = np.zeros(TRAINING_SIZE)
-mentionFeats = getMentionFeats2("mentionsList.txt","wordsList.txt",W2V_MIN_COUNT,W2V_SIZE,W2V_WINDOW)
+opts, args = getopt.getopt(sys.argv[1:],"n:l:d:f:",[])
+for opt, arg in opts:
+	if opt == '-n':
+		ITERATION_COUNT = int(arg)
+	elif opt == '-l':
+		LEARNING_RATE = float(arg)
+	elif opt == '-d':
+		DATA_DIR = arg
+	elif opt == '-f':
+		NUM_FILES = int(arg)
 
 # Build Model for Local Mention Ranking
-
-
 # Inputs/Placeholders (assuming we train one mention at a time)
 # Here phia/p are the feature embeddings while Y is the best antecedent (or should we take cluster instead? - depends on output)
 Phia_x = tf.placeholder(tf.float32, [1, PHIA_FEATURE_LEN])
-Phip_x = tf.placeholder(tf.float32, [TRAINING_SIZE, PHIP_FEATURE_LEN])
+Phip_x = tf.placeholder(tf.float32, [None, PHIP_FEATURE_LEN])
+
 # Y_antecedent array has True where it belongs to the same cluster and False otherwise
-Y_antecedent = tf.placeholder(tf.float32, [TRAINING_SIZE + 1, 1])
-mask = tf.placeholder(tf.float32, [TRAINING_SIZE + 1, 1])
+Y_antecedent = tf.placeholder(tf.float32, [None, 1])
+
+tr_size = tf.shape(Phip_x)[0]
 
 # Variables/Parameters
 W_a = tf.Variable(tf.random_uniform([PHIA_FEATURE_LEN, WA_WIDTH]))
@@ -66,18 +57,17 @@ b_v = tf.Variable(tf.random_uniform([1]))
 
 # Get inner linear function Wa(x)+ba and Wp(x)+bp
 l_a = tf.add(tf.matmul(Phia_x, W_a),b_a)
-l_a_tiled = tf.tile(l_a, [TRAINING_SIZE, 1])
+l_a_tiled = tf.tile(l_a, [tr_size, 1])
 
-l_p = tf.add(tf.matmul(Phip_x, W_p), tf.tile(b_p, [TRAINING_SIZE, 1]))
+l_p = tf.add(tf.matmul(Phip_x, W_p), tf.tile(b_p, [tr_size, 1]))
 l_p_concat = tf.concat(1, [l_a_tiled, l_p])
 
-
 # Fill best antecedent using max and all
-f_x_ana = tf.add(tf.matmul(tf.nn.tanh(l_p_concat), u), tf.fill([TRAINING_SIZE, 1], b_u[0]))
+f_x_ana = tf.add(tf.matmul(tf.nn.tanh(l_p_concat), u), tf.fill([tr_size, 1], b_u[0]))
 f_x_nonana = tf.add(tf.matmul(tf.nn.tanh(l_a), v), b_v)
 
 # Get argmax and max of ana and nonana f_x concatenated
-f_x = tf.mul(tf.add(tf.concat(0, [tf.fill([1,1], f_x_nonana[0][0]) ,f_x_ana]), tf.fill([TRAINING_SIZE + 1, 1], tf.constant(1000000, dtype='float32'))), mask)
+f_x = tf.add(tf.concat(0, [tf.fill([1,1], f_x_nonana[0][0]) ,f_x_ana]), tf.fill([tr_size + 1, 1], tf.constant(1000000, dtype='float32')))
 best_ant = tf.argmax(f_x, 0)
 f_x_best = tf.reduce_max(f_x, 0)
 
@@ -96,44 +86,46 @@ train_op = tf.train.GradientDescentOptimizer(LEARNING_RATE).minimize(loss)
 # Train model
 with tf.Session() as sess:
 	sess.run(tf.initialize_all_variables())
-	for iteration_count in range(int(sys.argv[1])):
-		mask_arr = np.zeros(TRAINING_SIZE) 
-		for i in range(TRAINING_SIZE):
+	for file_num in range(NUM_FILES):
 
-			latent_antecedents = np.multiply(np.logical_not(cluster_data - cluster_data[i]).astype(np.int), mask_arr)
-			latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents).reshape([TRAINING_SIZE + 1,1])
+		mentionFile = DATA_DIR + 'mentionsList' + str(file_num+1) + '.txt'
+		wordFile = DATA_DIR + 'wordsList' + str(file_num+1) + '.txt'
+		
+		cluster_data = getClustersArrayForMentions(mentionFile)
+		mentionFeats = getMentionFeats2(mentionFile,wordFile,W2V_MIN_COUNT,W2V_SIZE,W2V_WINDOW)
 
-			sess.run(train_op, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents, mask: np.append([[1]],mask_arr).reshape([TRAINING_SIZE + 1,1])})	
-			# print(sess.run(best_ant, feed_dict={Phia_x: np.random.rand(1, PHIA_FEATURE_LEN),Phip_x: np.random.rand(TRAINING_SIZE, PHIP_FEATURE_LEN),Y_antecedent: np.random.rand(1, TRAINING_SIZE + 1)}))
+		TRAINING_SIZE = len(cluster_data)
 
-			mask_arr[i] = 1
+		for iteration_count in range(ITERATION_COUNT):
+			for i in range(TRAINING_SIZE):
 
-		# print j
+				latent_antecedents = np.logical_not(cluster_data[:i] - cluster_data[i]).astype(np.int)
+				latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents).reshape([i+1,1])
 
-		mask_arr = np.zeros(TRAINING_SIZE)
-		score = 0
-		for i in range(TRAINING_SIZE):
+				sess.run(train_op, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE), Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE), Y_antecedent: latent_antecedents})
 
-			latent_antecedents = np.multiply(np.logical_not(cluster_data - cluster_data[i]).astype(np.int), mask_arr)
-			latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents).reshape([TRAINING_SIZE + 1,1])
+			cluster_pred = np.zeros(TRAINING_SIZE)
+			for i in range(TRAINING_SIZE):
 
-			# print(i+1, sess.run(loss_factor, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents, mask: np.append([[1]],mask_arr).reshape([TRAINING_SIZE + 1,1])}))
-			# print(i+1, sess.run(loss, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents, mask: np.append([[1]],mask_arr).reshape([TRAINING_SIZE + 1,1])}))
-			# print(i+1, sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents, mask: np.append([[1]],mask_arr).reshape([TRAINING_SIZE + 1,1])}))
-			
-			ant = np.array(sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents, mask: np.append([[1]],mask_arr).reshape([TRAINING_SIZE + 1,1])}))
-			if (ant == 0):
-				score = score + 1
-				for j in range(i):
-					if (cluster_data[j] == cluster_data[i]):
-						score = score - 1
-						break
-			elif (cluster_data[ant-1] == cluster_data[i]):
-				score = score + 1 
+				latent_antecedents = np.logical_not(cluster_data[:i] - cluster_data[i]).astype(np.int)
+				latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents).reshape([i+1,1])
 
+				# print(i+1, sess.run(loss_factor, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents, mask: np.append([[1]],mask_arr).reshape([TRAINING_SIZE + 1,1])}))
+				# print(i+1, sess.run(loss, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents, mask: np.append([[1]],mask_arr).reshape([TRAINING_SIZE + 1,1])}))
+				# print(i+1, sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents, mask: np.append([[1]],mask_arr).reshape([TRAINING_SIZE + 1,1])}))
+				
+				cluster_pred[i] = np.array(sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents}))
+				
+			print BCubedF1(cluster_pred, cluster_data)
+			# 	if (iteration_count == ITERATION_COUNT -1):
+			# 		print i+1, ant
+			# 	if (ant == 0):
+			# 		score = score + 1
+			# 		for j in range(i):
+			# 			if (cluster_data[j] == cluster_data[i]):
+			# 				score = score - 1
+			# 				break
+			# 	elif (cluster_data[ant-1] == cluster_data[i]):
+			# 		score = score + 1 
 
-			# print(i, sess.run(f_x, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents, mask: np.append([[1]],mask_arr).reshape([TRAINING_SIZE + 1,1])}))
-			# print(i, sess.run(mask, feed_dict={Phia_x: np.random.rand(1, PHIA_FEATURE_LEN),Phip_x: np.random.rand(TRAINING_SIZE, PHIP_FEATURE_LEN),Y_antecedent: np.random.rand(1, TRAINING_SIZE + 1)}))
-
-			mask_arr[i] = 1
-		print iteration_count, score, (score*100.0)/TRAINING_SIZE
+			# print iteration_count, score, (score*100.0)/TRAINING_SIZE
