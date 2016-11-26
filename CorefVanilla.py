@@ -15,15 +15,17 @@ WP_WIDTH = 128
 FL_PENALTY = 0.5
 FN_PENALTY = 1.2
 WL_PENALTY = 1
-LEARNING_RATE = 0.05
+LEARNING_RATE = 0.01
 W2V_MIN_COUNT = 1
 W2V_SIZE = 200
 W2V_WINDOW = 5
 ITERATION_COUNT = 1
 DATA_DIR = "./Data/"
+CKPT_PATH = "./Data/local.ckpt"
 NUM_FILES = -1
+RESTORE = False
 
-opts, args = getopt.getopt(sys.argv[1:],"n:l:d:f:",[])
+opts, args = getopt.getopt(sys.argv[1:],"n:l:d:f:r",[])
 for opt, arg in opts:
 	if opt == '-n':
 		ITERATION_COUNT = int(arg)
@@ -33,6 +35,8 @@ for opt, arg in opts:
 		DATA_DIR = arg
 	elif opt == '-f':
 		NUM_FILES = int(arg)
+	elif opt == '-r':
+		RESTORE = True
 
 wordfiles = filter(lambda filename:  filename.endswith('wordsList.txt') , listdir(DATA_DIR))
 if (NUM_FILES == -1):
@@ -50,14 +54,14 @@ Y_antecedent = tf.placeholder(tf.float32, [None, 1])
 tr_size = tf.shape(Phip_x)[0]
 
 # Variables/Parameters
-W_a = tf.Variable(tf.random_uniform([PHIA_FEATURE_LEN, WA_WIDTH]))
-b_a = tf.Variable(tf.random_uniform([1, WA_WIDTH])) 
-W_p = tf.Variable(tf.random_uniform([PHIP_FEATURE_LEN, WP_WIDTH]))
-b_p = tf.Variable(tf.random_uniform([1, WP_WIDTH]))
-u = tf.Variable(tf.random_uniform([WA_WIDTH + WP_WIDTH, 1]))
-v = tf.Variable(tf.random_uniform([WA_WIDTH, 1]))
-b_u = tf.Variable(tf.random_uniform([1]))
-b_v = tf.Variable(tf.random_uniform([1]))
+W_a = tf.Variable(tf.random_uniform([PHIA_FEATURE_LEN, WA_WIDTH]), name="W_a")
+b_a = tf.Variable(tf.random_uniform([1, WA_WIDTH]), name="b_a") 
+W_p = tf.Variable(tf.random_uniform([PHIP_FEATURE_LEN, WP_WIDTH]), name="W_p")
+b_p = tf.Variable(tf.random_uniform([1, WP_WIDTH]), name="b_p")
+u = tf.Variable(tf.random_uniform([WA_WIDTH + WP_WIDTH, 1]), name="u")
+v = tf.Variable(tf.random_uniform([WA_WIDTH, 1]), name="v")
+b_u = tf.Variable(tf.random_uniform([1]), name="b_u")
+b_v = tf.Variable(tf.random_uniform([1]), name="b_v")
 
 # Get inner linear function Wa(x)+ba and Wp(x)+bp
 l_a = tf.add(tf.matmul(Phia_x, W_a),b_a)
@@ -87,22 +91,25 @@ loss = tf.mul(tf.add(tf.constant(1.0), tf.sub(f_x_best, f_y_latent)), loss_facto
 
 train_op = tf.train.GradientDescentOptimizer(LEARNING_RATE).minimize(loss)
 
+saver = tf.train.Saver()
+
 # Train model
 with tf.Session() as sess:
 	sess.run(tf.initialize_all_variables())
-	for file_num in range(NUM_FILES):
+	if (RESTORE == True):
+		saver.restore(sess, CKPT_PATH)
+	for iteration_count in range(ITERATION_COUNT):
+		for file_num in range(NUM_FILES):
 
-		wordFile = DATA_DIR + wordfiles[file_num]
-		mentionFile = wordFile.replace("wordsList", "mentionsList")
-		print wordFile
-		
-		cluster_data = getClustersArrayForMentions(mentionFile)
-		mentionFeats = getMentionFeats2(mentionFile,wordFile,W2V_MIN_COUNT,W2V_SIZE,W2V_WINDOW)
+			wordFile = DATA_DIR + wordfiles[file_num]
+			mentionFile = wordFile.replace("wordsList", "mentionsList")
+			
+			cluster_data = getClustersArrayForMentions(mentionFile)
+			mentionFeats = getMentionFeats2(mentionFile,wordFile,W2V_MIN_COUNT,W2V_SIZE,W2V_WINDOW)
 
 
-		TRAINING_SIZE = len(cluster_data)
+			TRAINING_SIZE = len(cluster_data)
 
-		for iteration_count in range(ITERATION_COUNT):
 			for i in range(TRAINING_SIZE):
 
 				latent_antecedents = np.logical_not(cluster_data[:i] - cluster_data[i]).astype(np.int)
@@ -111,6 +118,8 @@ with tf.Session() as sess:
 				sess.run(train_op, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE), Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE), Y_antecedent: latent_antecedents})
 
 			cluster_pred = np.zeros(TRAINING_SIZE)
+			score = 0
+
 			for i in range(TRAINING_SIZE):
 
 				latent_antecedents = np.logical_not(cluster_data[:i] - cluster_data[i]).astype(np.int)
@@ -122,16 +131,22 @@ with tf.Session() as sess:
 				
 				cluster_pred[i] = np.array(sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents}))
 			
-			print BCubedF1(cluster_pred, cluster_data)
-			# 	if (iteration_count == ITERATION_COUNT -1):
-			# 		print i+1, ant
-			# 	if (ant == 0):
-			# 		score = score + 1
-			# 		for j in range(i):
-			# 			if (cluster_data[j] == cluster_data[i]):
-			# 				score = score - 1
-			# 				break
-			# 	elif (cluster_data[ant-1] == cluster_data[i]):
-			# 		score = score + 1 
+				# if (iteration_count == ITERATION_COUNT -1 and file_num == NUM_FILES - 1):
+				print i+1, cluster_pred[i]
 
-			# print iteration_count, score, (score*100.0)/TRAINING_SIZE
+				if (cluster_pred[i] == 0):
+					score = score + 1
+					for j in range(i):
+						if (cluster_data[j] == cluster_data[i]):
+							score = score - 1
+							break
+				elif (cluster_data[cluster_pred[i]-1] == cluster_data[i]):
+					score = score + 1
+
+			if iteration_count % 10 == 0:
+				print wordFile
+				print BCubedF1(cluster_data, cluster_pred)
+				print score, (score*100.0)/TRAINING_SIZE
+
+	saver.save(sess, CKPT_PATH)
+	print "OVER"

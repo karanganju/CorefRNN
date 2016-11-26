@@ -12,7 +12,6 @@ def BCubedRecall(cluster_list, size_of_cluster):
 		num_mentions += size
 
 		for elem in List:
-			
 			if elem == last:
 				count += 1
 			
@@ -22,7 +21,6 @@ def BCubedRecall(cluster_list, size_of_cluster):
 				count = 1
 
 		rec_sum += float(count*count)/float(size_of_cluster[last])
-	
 	return rec_sum/num_mentions
 
 
@@ -79,8 +77,12 @@ def BCubedF1(cluster_OPC, cluster_pred):
 
 	recall = BCubedRecall(cluster_list, size_of_cluster)
 	precision = BCubedPrecision(cluster_list)
-	return 2*recall*precision/(recall+precision), recall, precision
+	return 200*recall*precision/(recall+precision), 100*recall, 100*precision
 
 # Test Case
 # cluster_OPC = [0,0,0,0,0,1,1,2,1,3,4,1,1,1]
 # cluster_pred = [0,1,1,1,0,5,5,0,8,8,8,8,8,8]
+
+# a1 = [0,0,1,0,0,1,1,2,1,1]
+# a2 = [2,1,3,3,2,1,0,0,1,3]
+# print BCubedF1(a2,a1)
