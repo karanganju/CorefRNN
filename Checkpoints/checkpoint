@@ -1,0 +1,2 @@
+model_checkpoint_path: "local_with_train.ckpt"
+all_model_checkpoint_paths: "local_with_train.ckpt"
