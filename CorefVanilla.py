@@ -106,12 +106,12 @@ with tf.Session() as sess:
 
 			wordFile = TRAIN_DIR + train_doc
 			mentionFile = wordFile.replace("wordsList", "mentionsList")
-	
+
 			try:
 				cluster_data = getClustersArrayForMentions(mentionFile)
 				mentionFeats = getMentionFeats2(mentionFile,wordFile,W2V_MIN_COUNT,W2V_SIZE,W2V_WINDOW)
 			except:
-				print train_doc
+				print "Error on",train_doc
 				continue
 
 			TRAINING_SIZE = len(cluster_data)
@@ -129,8 +129,6 @@ with tf.Session() as sess:
 
 	for test_doc in test_wordfiles:
 
-		print test_doc
-		
 		wordFile = TEST_DIR + test_doc
 		mentionFile = wordFile.replace("wordsList", "mentionsList")
 			
@@ -148,9 +146,6 @@ with tf.Session() as sess:
 			latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents).reshape([i+1,1])
 
 			cluster_pred[i] = np.array(sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents}))
-		
-			# if (iteration_count == ITERATION_COUNT -1 and file_num == NUM_FILES - 1):
-			# print i+1, cluster_pred[i]
 
 			if (cluster_pred[i] == 0):
 				score = score + 1
@@ -161,9 +156,7 @@ with tf.Session() as sess:
 			elif (cluster_data[cluster_pred[i]-1] == cluster_data[i]):
 				score = score + 1
 
-		# print wordFile
 		(_, rec, prec) = BCubedF1(cluster_data, cluster_pred)
-		# print score, rec, prec, (score*100.0)/TRAINING_SIZE
 		eval_rec += rec*TRAINING_SIZE
 		eval_prec += prec*TRAINING_SIZE
 		total_ments += TRAINING_SIZE
