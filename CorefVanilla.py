@@ -20,27 +20,30 @@ W2V_MIN_COUNT = 1
 W2V_SIZE = 200
 W2V_WINDOW = 5
 ITERATION_COUNT = 1
-DATA_DIR = "./Data/"
-CKPT_PATH = "./Data/local.ckpt"
-NUM_FILES = -1
+TRAIN_DIR = "./Data/Train/"
+TEST_DIR = "./Data/Test/"
+CKPT_PATH = "./Checkpoints/local.ckpt"
 RESTORE = False
+SAVE = False
 
-opts, args = getopt.getopt(sys.argv[1:],"n:l:d:f:r",[])
+opts, args = getopt.getopt(sys.argv[1:],"n:l:d:rs:",[])
 for opt, arg in opts:
 	if opt == '-n':
 		ITERATION_COUNT = int(arg)
 	elif opt == '-l':
 		LEARNING_RATE = float(arg)
 	elif opt == '-d':
-		DATA_DIR = arg
-	elif opt == '-f':
-		NUM_FILES = int(arg)
+		TRAIN_DIR = arg + "/Train"
+		TEST_DIR = arg + "/Test"
 	elif opt == '-r':
 		RESTORE = True
+	elif opt == '-s':
+		SAVE = True
+		CKPT_PATH = arg
 
-wordfiles = filter(lambda filename:  filename.endswith('wordsList.txt') , listdir(DATA_DIR))
-if (NUM_FILES == -1):
-	NUM_FILES = len(wordfiles)
+train_wordfiles = filter(lambda filename:  filename.endswith('wordsList.txt') , listdir(TRAIN_DIR))
+test_wordfiles = filter(lambda filename:  filename.endswith('wordsList.txt') , listdir(TEST_DIR))
+NUM_FILES = len(train_wordfiles)
 
 # Build Model for Local Mention Ranking
 # Inputs/Placeholders (assuming we train one mention at a time)
@@ -99,14 +102,17 @@ with tf.Session() as sess:
 	if (RESTORE == True):
 		saver.restore(sess, CKPT_PATH)
 	for iteration_count in range(ITERATION_COUNT):
-		for file_num in range(NUM_FILES):
+		for train_doc in train_wordfiles:
 
-			wordFile = DATA_DIR + wordfiles[file_num]
+			wordFile = TRAIN_DIR + train_doc
 			mentionFile = wordFile.replace("wordsList", "mentionsList")
-			
-			cluster_data = getClustersArrayForMentions(mentionFile)
-			mentionFeats = getMentionFeats2(mentionFile,wordFile,W2V_MIN_COUNT,W2V_SIZE,W2V_WINDOW)
 
+			try:
+				cluster_data = getClustersArrayForMentions(mentionFile)
+				mentionFeats = getMentionFeats2(mentionFile,wordFile,W2V_MIN_COUNT,W2V_SIZE,W2V_WINDOW)
+			except:
+				print "Error on",train_doc
+				continue
 
 			TRAINING_SIZE = len(cluster_data)
 
@@ -116,37 +122,49 @@ with tf.Session() as sess:
 				latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents).reshape([i+1,1])
 
 				sess.run(train_op, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE), Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE), Y_antecedent: latent_antecedents})
+	
+	eval_prec = 0
+	eval_rec = 0
+	total_ments = 0
 
-			cluster_pred = np.zeros(TRAINING_SIZE)
-			score = 0
+	for test_doc in test_wordfiles:
 
-			for i in range(TRAINING_SIZE):
-
-				latent_antecedents = np.logical_not(cluster_data[:i] - cluster_data[i]).astype(np.int)
-				latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents).reshape([i+1,1])
-
-				# print(i+1, sess.run(loss_factor, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents, mask: np.append([[1]],mask_arr).reshape([TRAINING_SIZE + 1,1])}))
-				# print(i+1, sess.run(loss, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents, mask: np.append([[1]],mask_arr).reshape([TRAINING_SIZE + 1,1])}))
-				# print(i+1, sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents, mask: np.append([[1]],mask_arr).reshape([TRAINING_SIZE + 1,1])}))
-				
-				cluster_pred[i] = np.array(sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents}))
+		wordFile = TEST_DIR + test_doc
+		mentionFile = wordFile.replace("wordsList", "mentionsList")
 			
-				# if (iteration_count == ITERATION_COUNT -1 and file_num == NUM_FILES - 1):
-				print i+1, cluster_pred[i]
+		cluster_data = getClustersArrayForMentions(mentionFile)
+		mentionFeats = getMentionFeats2(mentionFile,wordFile,W2V_MIN_COUNT,W2V_SIZE,W2V_WINDOW)
 
-				if (cluster_pred[i] == 0):
-					score = score + 1
-					for j in range(i):
-						if (cluster_data[j] == cluster_data[i]):
-							score = score - 1
-							break
-				elif (cluster_data[cluster_pred[i]-1] == cluster_data[i]):
-					score = score + 1
+		TRAINING_SIZE = len(cluster_data)
 
-			if iteration_count % 10 == 0:
-				print wordFile
-				print BCubedF1(cluster_data, cluster_pred)
-				print score, (score*100.0)/TRAINING_SIZE
+		cluster_pred = np.zeros(TRAINING_SIZE)
+		score = 0
 
-	saver.save(sess, CKPT_PATH)
+		for i in range(TRAINING_SIZE):
+
+			latent_antecedents = np.logical_not(cluster_data[:i] - cluster_data[i]).astype(np.int)
+			latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents).reshape([i+1,1])
+
+			cluster_pred[i] = np.array(sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,W2V_SIZE) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents}))
+
+			if (cluster_pred[i] == 0):
+				score = score + 1
+				for j in range(i):
+					if (cluster_data[j] == cluster_data[i]):
+						score = score - 1
+						break
+			elif (cluster_data[cluster_pred[i]-1] == cluster_data[i]):
+				score = score + 1
+
+		(_, rec, prec) = BCubedF1(cluster_data, cluster_pred)
+		eval_rec += rec*TRAINING_SIZE
+		eval_prec += prec*TRAINING_SIZE
+		total_ments += TRAINING_SIZE
+
+	print "Total weighted recall :", eval_rec/total_ments
+	print "Total weighted precision :", eval_prec/total_ments
+	print "B1 score :", (2 * eval_rec * eval_prec)/((eval_prec + eval_rec) * total_ments)
+
+	if (SAVE == True):
+		saver.save(sess, CKPT_PATH)
 	print "OVER"
