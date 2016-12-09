@@ -37,7 +37,8 @@ def Word2VecModel(File, min_count = 1, size = 200, window = 5):
             words.append(sent)
             sent = []
         else:
-            sent.append(line)
+            if line != "" and line != " ":
+                sent.append(line)
     file.close()
 
     if len(sent) != 0:
@@ -157,7 +158,8 @@ def Word2VecModel2(File, min_count = 1, size = 200, window = 5):
             sent = []
         else:
             for word in line:
-                sent.append(word)
+                if word != "" and word != " ":
+                    sent.append(word)
     file.close()
 
     if len(sent) != 0:
@@ -325,7 +327,7 @@ if __name__ == '__main__':
     size = 200
     window = 5
 
-    MentionFeats = getMentionFeats2("mentionsList.txt","wordsList.txt",count,size,window)
+    MentionFeats = getMentionFeats2("mentionsList1.txt","wordsList1.txt",count,size,window)
     print(np.shape(MentionFeats))
 
     for idx in range(np.shape(MentionFeats)[0]):
