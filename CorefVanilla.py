@@ -106,7 +106,6 @@ with tf.Session() as sess:
 
 			wordFile = TRAIN_DIR + train_doc
 			mentionFile = wordFile.replace("wordsList", "mentionsList")
-
 			try:
 				cluster_data = getClustersArrayForMentions(mentionFile)
 				mentionFeats = getMentionFeats2(mentionFile,wordFile,W2V_MIN_COUNT,W2V_SIZE,W2V_WINDOW)
@@ -156,7 +155,9 @@ with tf.Session() as sess:
 			elif (cluster_data[cluster_pred[i]-1] == cluster_data[i]):
 				score = score + 1
 
+		# print wordFile
 		(_, rec, prec) = BCubedF1(cluster_data, cluster_pred)
+		# print score, rec, prec, (score*100.0)/TRAINING_SIZE
 		eval_rec += rec*TRAINING_SIZE
 		eval_prec += prec*TRAINING_SIZE
 		total_ments += TRAINING_SIZE
