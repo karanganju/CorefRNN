@@ -272,7 +272,7 @@ def getComplexPairFeats(idx,mentionFeats,size):
     siz = len(mentionFeats[idx])
 
     dist = np.zeros((1,size))
-    BasicMentionFeats = mentionFeats[idx].reshape((1,siz))
+    BasicMentionFeats = np.zeros((1,siz))
     BasicAnteFeats = np.zeros((1,siz))
     MentionDiff = np.zeros((1,1))
     StringMatch = np.zeros((1,1))
@@ -280,6 +280,7 @@ def getComplexPairFeats(idx,mentionFeats,size):
     ComplexPairWiseFeats = np.hstack((dist, BasicMentionFeats, BasicAnteFeats, MentionDiff, StringMatch))
     flag = 0
     for pidx in range(0,idx):
+        BasicMentionFeats = mentionFeats[idx].reshape((1, siz))
         feat1 = mentionFeats[idx][0:size]
         feat2 = mentionFeats[pidx][0:size]
         dist = feat1 - feat2
@@ -332,4 +333,5 @@ if __name__ == '__main__':
 
     for idx in range(np.shape(MentionFeats)[0]):
         ComplexPairWiseFeats = getComplexPairFeats(idx,MentionFeats,size)
-        print(np.shape(ComplexPairWiseFeats))
+        print(ComplexPairWiseFeats)
+        # print(np.shape(ComplexPairWiseFeats))
