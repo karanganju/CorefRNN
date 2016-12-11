@@ -3,6 +3,8 @@ from munkres import Munkres, print_matrix, make_cost_matrix
 import sys
 
 def _getCommonMentions(opcCluster, predCluster):
+	print opcCluster
+	print predCluster
 	predictedset = sorted(list(predCluster))
 	goldset = sorted(list(opcCluster))
 
@@ -31,14 +33,16 @@ def _computePhiSubsets(opcCluster, predCluster):
 
 def computeClusterArrays(cluster):
 	opcClusterLen = len(cluster)
-	maxClusterIndex = max(cluster)
+	maxClusterIndex = int(max(cluster))
 
-	opcClusters = [-1] * (maxClusterIndex+1)
+	opcClusters = []
+	for i in range(maxClusterIndex+1):
+		opcClusters.append([])
+
 	for i in range(opcClusterLen):
 		mentionIndex = i
-		mentionClusterIndex = cluster[i]
-		if(opcClusters[mentionClusterIndex] == -1):
-			opcClusters[mentionClusterIndex] = []
+		mentionClusterIndex = int(cluster[i])
+		if(len(opcClusters[mentionClusterIndex]) == 0):
 			opcClusters[mentionClusterIndex].append(mentionIndex)
 		else :
 			opcClusters[mentionClusterIndex].append(mentionIndex)
