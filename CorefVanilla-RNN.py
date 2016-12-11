@@ -58,7 +58,7 @@ Y_antecedent = tf.placeholder(tf.float32, [None, 1])
 tr_size = tf.shape(Phip_x)[0]
 
 # LSTM stuff
-state = tf.zeros([1, 1, HIDDEN_SIZE])
+state_array = tf.Variable(tf.zeros([0, 1, HIDDEN_SIZE]))
 cell = tf.nn.rnn_cell.BasicLSTMCell(HIDDEN_SIZE)
 
 # Variables/Parameters
@@ -90,7 +90,7 @@ l_p_concat = tf.concat(1, [l_a_tiled, l_p])
 h_c = tf.nn.tanh(tf.add(tf.matmul(Phia_x, W_c), b_c))
 NA = tf.add(tf.matmul(W_s, tf.concat(1, [Phia_x, tf.reduce_sum(state_array, 0)])), b_s)
 
-g_x_ana = tf.matmul(h_c, state_array)
+g_x_ana = tf.matmul(h_c, tf.transpose(state_array))
 g_x_nonana = tf.matmul(NA, q)
 g_x = tf.concat(0, [tf.fill([1,1], g_x_nonana[0][0]) ,g_x_ana])
 

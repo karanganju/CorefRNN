@@ -175,6 +175,8 @@ with tf.Session() as sess:
 			eval_f1_muc += f1_muc
 			num_files += 1
 
+		
+		print "Trial", iteration_count, ":"
 
 		print "Macro-ave B3 recall :", eval_rec_b3/num_files
 		print "Macro-ave B3 precision :", eval_prec_b3/num_files
