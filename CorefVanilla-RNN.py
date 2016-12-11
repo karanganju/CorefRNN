@@ -25,6 +25,7 @@ TEST_DIR = "./Data/Test/"
 CKPT_PATH = "./Checkpoints/local.ckpt"
 RESTORE = False
 SAVE = False
+HIDDEN_SIZE = 200
 
 opts, args = getopt.getopt(sys.argv[1:],"n:l:d:rs:",[])
 for opt, arg in opts:
@@ -56,13 +57,25 @@ Y_antecedent = tf.placeholder(tf.float32, [None, 1])
 
 tr_size = tf.shape(Phip_x)[0]
 
+# LSTM stuff
+state = tf.zeros([1, 1, HIDDEN_SIZE])
+cell = tf.nn.rnn_cell.BasicLSTMCell(HIDDEN_SIZE)
+
 # Variables/Parameters
 W_a = tf.Variable(tf.random_uniform([PHIA_FEATURE_LEN, WA_WIDTH]), name="W_a")
 b_a = tf.Variable(tf.random_uniform([1, WA_WIDTH]), name="b_a") 
 W_p = tf.Variable(tf.random_uniform([PHIP_FEATURE_LEN, WP_WIDTH]), name="W_p")
 b_p = tf.Variable(tf.random_uniform([1, WP_WIDTH]), name="b_p")
+
+W_c = tf.Variable(tf.random_uniform([PHIA_FEATURE_LEN, WA_WIDTH]), name="W_c")
+b_c = tf.Variable(tf.random_uniform([1, WA_WIDTH]), name="b_c")
+W_s = tf.Variable(tf.random_uniform([PHIA_FEATURE_LEN+WA_WIDTH, WA_WIDTH]), name="W_s")
+b_s = tf.Variable(tf.random_uniform([1, WA_WIDTH]), name="b_s")
+
 u = tf.Variable(tf.random_uniform([WA_WIDTH + WP_WIDTH, 1]), name="u")
 v = tf.Variable(tf.random_uniform([WA_WIDTH, 1]), name="v")
+q = tf.Variable(tf.random_uniform([WA_WIDTH, 1]), name="q")
+
 b_u = tf.Variable(tf.random_uniform([1]), name="b_u")
 b_v = tf.Variable(tf.random_uniform([1]), name="b_v")
 
@@ -73,12 +86,20 @@ l_a_tiled = tf.tile(l_a, [tr_size, 1])
 l_p = tf.add(tf.matmul(Phip_x, W_p), tf.tile(b_p, [tr_size, 1]))
 l_p_concat = tf.concat(1, [l_a_tiled, l_p])
 
+# LSTM part
+h_c = tf.nn.tanh(tf.add(tf.matmul(Phia_x, W_c), b_c))
+NA = tf.add(tf.matmul(W_s, tf.concat(1, [Phia_x, tf.reduce_sum(state_array, 0)])), b_s)
+
+g_x_ana = tf.matmul(h_c, state_array)
+g_x_nonana = tf.matmul(NA, q)
+g_x = tf.concat(0, [tf.fill([1,1], g_x_nonana[0][0]) ,g_x_ana])
+
 # Fill best antecedent using max and all
 f_x_ana = tf.add(tf.matmul(tf.nn.tanh(l_p_concat), u), tf.fill([tr_size, 1], b_u[0]))
 f_x_nonana = tf.add(tf.matmul(tf.nn.tanh(l_a), v), b_v)
 
 # Get argmax and max of ana and nonana f_x concatenated
-f_x = tf.concat(0, [tf.fill([1,1], f_x_nonana[0][0]) ,f_x_ana])
+f_x = tf.add(tf.concat(0, [tf.fill([1,1], f_x_nonana[0][0]) ,f_x_ana]), g_x)
 best_ant = tf.argmax(f_x, 0)
 f_x_best = tf.reduce_max(f_x, 0)
 

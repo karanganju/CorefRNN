@@ -2,14 +2,14 @@ import tensorflow as tf
 import numpy as np
 import sys
 import getopt
-from conllfeatures import *
+from conllfeaturesadvanced import *
 from Scorer import F1_scores
 from os import listdir
 from os.path import isfile, join
 
 # Config Variables
-PHIA_FEATURE_LEN = 200
-PHIP_FEATURE_LEN = 200
+PHIA_FEATURE_LEN = 1005
+PHIP_FEATURE_LEN = 2212
 WA_WIDTH = 128
 WP_WIDTH = 128
 FL_PENALTY = 0.5
@@ -102,8 +102,8 @@ with tf.Session() as sess:
 	if (RESTORE == True):
 		saver.restore(sess, CKPT_PATH)
 	for iteration_count in range(ITERATION_COUNT):
-		for train_doc in train_wordfiles:
-
+		for ind, train_doc in enumerate(train_wordfiles):
+			
 			wordFile = TRAIN_DIR + train_doc
 			mentionFile = wordFile.replace("wordsList", "mentionsList")
 			try:
@@ -116,13 +116,11 @@ with tf.Session() as sess:
 			TRAINING_SIZE = len(cluster_data)
 
 			for i in range(TRAINING_SIZE):
-
 				latent_antecedents = np.logical_not(cluster_data[:i] - cluster_data[i]).astype(np.int)
 				latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents).reshape([i+1,1])
 
-				sess.run(train_op, feed_dict={Phia_x: mentionFeats[i].reshape(1,PHIA_FEATURE_LEN), Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE), Y_antecedent: latent_antecedents})
+				sess.run(train_op, feed_dict={Phia_x: mentionFeats[i].reshape(1,PHIA_FEATURE_LEN), Phip_x: getComplexPairFeats(i, mentionFeats, W2V_SIZE), Y_antecedent: latent_antecedents})
 		
-			# print train_doc
 
 		eval_prec_b3 = 0
 		eval_rec_b3 = 0
@@ -132,14 +130,19 @@ with tf.Session() as sess:
 		eval_f1_muc = 0
 		num_files = 0
 
+
 		for test_doc in test_wordfiles:
 
 			wordFile = TEST_DIR + test_doc
 			mentionFile = wordFile.replace("wordsList", "mentionsList")
-				
-			cluster_data = getClustersArrayForMentions(mentionFile)
-			mentionFeats = getMentionFeats2(mentionFile,wordFile,W2V_MIN_COUNT,W2V_SIZE,W2V_WINDOW)
-
+			
+			try:
+				cluster_data = getClustersArrayForMentions(mentionFile)
+				mentionFeats = getMentionFeats2(mentionFile,wordFile,W2V_MIN_COUNT,W2V_SIZE,W2V_WINDOW)
+			except:
+				print "Error on", test_doc
+				continue
+			
 			TRAINING_SIZE = len(cluster_data)
 
 			cluster_pred = np.zeros(TRAINING_SIZE)
@@ -150,7 +153,7 @@ with tf.Session() as sess:
 				latent_antecedents = np.logical_not(cluster_data[:i] - cluster_data[i]).astype(np.int)
 				latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents).reshape([i+1,1])
 
-				cluster_pred[i] = np.array(sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,PHIA_FEATURE_LEN) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents}))
+				cluster_pred[i] = np.array(sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,PHIA_FEATURE_LEN) ,Phip_x: getComplexPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents}))
 
 				if (cluster_pred[i] == 0):
 					score = score + 1
@@ -180,7 +183,8 @@ with tf.Session() as sess:
 		print "Macro-ave MUC recall :", eval_rec_muc/num_files
 		print "Macro-ave MUC precision :", eval_prec_muc/num_files
 		print "Macro-ave MUC F1 :", eval_f1_muc/num_files
+		sys.stdout.flush()
 
-	if (SAVE == True):
-		saver.save(sess, CKPT_PATH)
-	print "OVER"
+		if (SAVE == True):
+			saver.save(sess, CKPT_PATH)
+		print "OVER"
