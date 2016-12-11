@@ -128,6 +128,9 @@ with tf.Session() as sess:
 		eval_prec_muc = 0
 		eval_rec_muc = 0
 		eval_f1_muc = 0
+		eval_f1_ceaf = 0
+		eval_rec_ceaf = 0
+		eval_prec_ceaf = 0
 		num_files = 0
 
 
@@ -165,7 +168,7 @@ with tf.Session() as sess:
 					score = score + 1
 
 			# print wordFile
-			(f1_b3, rec_b3, prec_b3, f1_muc, rec_muc, prec_muc) = F1_scores(cluster_data, cluster_pred)
+			(f1_b3, rec_b3, prec_b3, f1_muc, rec_muc, prec_muc, f1_ceaf, rec_ceaf, prec_ceaf) = F1_scores(cluster_data, cluster_pred)
 			# print score, rec, prec, (score*100.0)/TRAINING_SIZE
 			eval_rec_b3 += rec_b3
 			eval_prec_b3 += prec_b3
@@ -173,6 +176,9 @@ with tf.Session() as sess:
 			eval_rec_muc += rec_muc
 			eval_prec_muc += prec_muc
 			eval_f1_muc += f1_muc
+			eval_f1_ceaf += f1_ceaf
+			eval_rec_ceaf += rec_ceaf
+			eval_prec_ceaf += prec_ceaf
 			num_files += 1
 
 		
@@ -185,6 +191,11 @@ with tf.Session() as sess:
 		print "Macro-ave MUC recall :", eval_rec_muc/num_files
 		print "Macro-ave MUC precision :", eval_prec_muc/num_files
 		print "Macro-ave MUC F1 :", eval_f1_muc/num_files
+		
+		print "Macro-ave CEAF recall :", eval_rec_ceaf/num_files
+		print "Macro-ave CEAF precision :", eval_prec_ceaf/num_files
+		print "Macro-ave CEAF F1 :", eval_f1_ceaf/num_files
+
 		sys.stdout.flush()
 
 		if (SAVE == True):
