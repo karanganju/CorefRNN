@@ -3,8 +3,8 @@ from munkres import Munkres, print_matrix, make_cost_matrix
 import sys
 
 def _getCommonMentions(opcCluster, predCluster):
-	print opcCluster
-	print predCluster
+	# print opcCluster
+	# print predCluster
 	predictedset = sorted(list(predCluster))
 	goldset = sorted(list(opcCluster))
 
