@@ -23,12 +23,11 @@ def _getCommonMentions(opcCluster, predCluster):
 			j +=1
 
 	return count
-#endDef
+
 
 def _computePhiSubsets(opcCluster, predCluster):
 	commonMentions = _getCommonMentions(opcCluster, predCluster)
 	return float(2 * commonMentions)/(len(opcCluster) + len(predCluster))
-#endDef
 
 
 def computeClusterArrays(cluster):
@@ -47,20 +46,6 @@ def computeClusterArrays(cluster):
 		else :
 			opcClusters[mentionClusterIndex].append(mentionIndex)
 	return opcClusters
-#endDef	
-
-# def CeafRecall():
-
-
-# #endDef
-
-
-
-# def CeafPrecision():
-
-
-# #endDef
-
 
 # Assuming Cluster_OPC is indexed as array[i] = cluster of mention i starting from 0
 # Assuming Cluster_pred is indexed as array[i] = antecedent of mention i (with 0 as dummy)
@@ -108,10 +93,10 @@ def computeCeafScores(cluster_OPC, cluster_pred):
 	# print 'total profit=%f' % total
 
 	totalOptimal = total
-	ceafRecall = 2 * total / (opcClustersLen)
-	ceafPrecision = 2 * total / (predClustersLen)
+	ceafRecall = total / (opcClustersLen)
+	ceafPrecision = total / (predClustersLen)
 
-	fScore = 2 * totalOptimal / (opcClustersLen + predClustersLen)
+	fScore = 2*totalOptimal / (opcClustersLen + predClustersLen)
 
 	return ceafRecall, ceafPrecision, fScore
 
@@ -248,7 +233,7 @@ def F1_scores(cluster_OPC, cluster_pred):
 
 
 	recall3, precision3, f3 = computeCeafScores(cluster_OPC, cluster_pred)
-	return f1, 100*recall, 100*precision, f12, 100*recall2, 100*precision2, f3, 100*recall3, 100*precision3
+	return f1, 100*recall, 100*precision, f12, 100*recall2, 100*precision2, 100*f3, 100*recall3, 100*precision3
 
 # a1 = [0,0,0,0,0,0,0,0,0,0,0,0]
 # a2 = [0,0,0,0,0,1,1,2,2,2,2,2]

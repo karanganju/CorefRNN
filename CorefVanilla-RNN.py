@@ -58,8 +58,9 @@ Y_antecedent = tf.placeholder(tf.float32, [None, 1])
 tr_size = tf.shape(Phip_x)[0]
 
 # LSTM stuff
-state_array = tf.Variable(tf.zeros([0, 1, HIDDEN_SIZE]))
-cell = tf.nn.rnn_cell.BasicLSTMCell(HIDDEN_SIZE)
+state_array = tf.Variable(tf.zeros([0, HIDDEN_SIZE]))
+initial_state = tf.Variable(tf.zeros([1, HIDDEN_SIZE]))
+cell = tf.nn.rnn_cell.BasicLSTMCell(HIDDEN_SIZE, state_is_tuple=False)
 
 # Variables/Parameters
 W_a = tf.Variable(tf.random_uniform([PHIA_FEATURE_LEN, WA_WIDTH]), name="W_a")
@@ -67,9 +68,9 @@ b_a = tf.Variable(tf.random_uniform([1, WA_WIDTH]), name="b_a")
 W_p = tf.Variable(tf.random_uniform([PHIP_FEATURE_LEN, WP_WIDTH]), name="W_p")
 b_p = tf.Variable(tf.random_uniform([1, WP_WIDTH]), name="b_p")
 
-W_c = tf.Variable(tf.random_uniform([PHIA_FEATURE_LEN, WA_WIDTH]), name="W_c")
-b_c = tf.Variable(tf.random_uniform([1, WA_WIDTH]), name="b_c")
-W_s = tf.Variable(tf.random_uniform([PHIA_FEATURE_LEN+WA_WIDTH, WA_WIDTH]), name="W_s")
+W_c = tf.Variable(tf.random_uniform([PHIA_FEATURE_LEN, HIDDEN_SIZE]), name="W_c")
+b_c = tf.Variable(tf.random_uniform([1, HIDDEN_SIZE]), name="b_c")
+W_s = tf.Variable(tf.random_uniform([PHIA_FEATURE_LEN + HIDDEN_SIZE, WA_WIDTH]), name="W_s")
 b_s = tf.Variable(tf.random_uniform([1, WA_WIDTH]), name="b_s")
 
 u = tf.Variable(tf.random_uniform([WA_WIDTH + WP_WIDTH, 1]), name="u")
@@ -88,9 +89,9 @@ l_p_concat = tf.concat(1, [l_a_tiled, l_p])
 
 # LSTM part
 h_c = tf.nn.tanh(tf.add(tf.matmul(Phia_x, W_c), b_c))
-NA = tf.add(tf.matmul(W_s, tf.concat(1, [Phia_x, tf.reduce_sum(state_array, 0)])), b_s)
+NA = tf.add(tf.matmul(tf.concat(1, [Phia_x, tf.reshape(tf.reduce_sum(state_array, 0), [1, 200])]), W_s), b_s)
 
-g_x_ana = tf.matmul(h_c, tf.transpose(state_array))
+g_x_ana = tf.transpose(tf.matmul(h_c, tf.transpose(state_array)))
 g_x_nonana = tf.matmul(NA, q)
 g_x = tf.concat(0, [tf.fill([1,1], g_x_nonana[0][0]) ,g_x_ana])
 
@@ -142,8 +143,16 @@ with tf.Session() as sess:
 				latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents).reshape([i+1,1])
 
 				sess.run(train_op, feed_dict={Phia_x: mentionFeats[i].reshape(1,PHIA_FEATURE_LEN), Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE), Y_antecedent: latent_antecedents})
-		
-			# print train_doc
+				
+				ant = np.array(sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,PHIA_FEATURE_LEN) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents}))
+				# Psuedocode Here MUAHAHAHAHA
+				LSTM_inp = tf.identity(tf.Variable(mentionFeats[i].reshape(1,PHIA_FEATURE_LEN), dtype='float32'))
+				if (ant == 0):
+					_, state = cell(LSTM_inp, initial_state)
+					state_array = tf.concat(0, [state_array, state])
+				else:
+					_, state = cell(LSTM_inp, state_array[ant-1])
+					state_array = tf.concat(0, [state_array, state])
 
 		eval_prec_b3 = 0
 		eval_rec_b3 = 0

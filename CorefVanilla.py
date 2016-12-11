@@ -102,7 +102,12 @@ with tf.Session() as sess:
 	if (RESTORE == True):
 		saver.restore(sess, CKPT_PATH)
 	for iteration_count in range(ITERATION_COUNT):
-		for train_doc in train_wordfiles:
+		for ind,train_doc in enumerate(train_wordfiles):
+
+			if (ind > 3):
+				break
+
+			# print train_doc
 
 			wordFile = TRAIN_DIR + train_doc
 			mentionFile = wordFile.replace("wordsList", "mentionsList")
@@ -164,6 +169,7 @@ with tf.Session() as sess:
 				elif (cluster_data[cluster_pred[i]-1] == cluster_data[i]):
 					score = score + 1
 
+			print test_doc
 			# print wordFile
 			(f1_b3, rec_b3, prec_b3, f1_muc, rec_muc, prec_muc, f1_ceaf, rec_ceaf, prec_ceaf) = F1_scores(cluster_data, cluster_pred)
 			# print score, rec, prec, (score*100.0)/TRAINING_SIZE
