@@ -89,7 +89,7 @@ l_p_concat = tf.concat(1, [l_a_tiled, l_p])
 
 # LSTM part
 h_c = tf.nn.tanh(tf.add(tf.matmul(Phia_x, W_c), b_c))
-NA = tf.add(tf.matmul(tf.concat(1, [Phia_x, tf.reshape(tf.reduce_sum(state_array, 0), [1, 200])]), W_s), b_s)
+NA = tf.tanh(tf.add(tf.matmul(tf.concat(1, [Phia_x, tf.reshape(tf.reduce_sum(state_array, 0), [1, 200])]), W_s), b_s))
 
 g_x_ana = tf.transpose(tf.matmul(h_c, tf.transpose(state_array)))
 g_x_nonana = tf.matmul(NA, q)
@@ -142,9 +142,10 @@ with tf.Session() as sess:
 				latent_antecedents = np.logical_not(cluster_data[:i] - cluster_data[i]).astype(np.int)
 				latent_antecedents = np.append(np.array([not latent_antecedents.any()]).astype(np.int), latent_antecedents).reshape([i+1,1])
 
+				ant = np.array(sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,PHIA_FEATURE_LEN) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents}))
+				
 				sess.run(train_op, feed_dict={Phia_x: mentionFeats[i].reshape(1,PHIA_FEATURE_LEN), Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE), Y_antecedent: latent_antecedents})
 				
-				ant = np.array(sess.run(best_ant, feed_dict={Phia_x: mentionFeats[i].reshape(1,PHIA_FEATURE_LEN) ,Phip_x: getPairFeats(i, mentionFeats, W2V_SIZE) ,Y_antecedent: latent_antecedents}))
 				# Psuedocode Here MUAHAHAHAHA
 				LSTM_inp = tf.identity(tf.Variable(mentionFeats[i].reshape(1,PHIA_FEATURE_LEN), dtype='float32'))
 				if (ant == 0):

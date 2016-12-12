@@ -103,11 +103,7 @@ with tf.Session() as sess:
 		saver.restore(sess, CKPT_PATH)
 	for iteration_count in range(ITERATION_COUNT):
 		for ind,train_doc in enumerate(train_wordfiles):
-
-			if (ind > 3):
-				break
-
-			# print train_doc
+			break
 
 			wordFile = TRAIN_DIR + train_doc
 			mentionFile = wordFile.replace("wordsList", "mentionsList")
@@ -169,7 +165,7 @@ with tf.Session() as sess:
 				elif (cluster_data[cluster_pred[i]-1] == cluster_data[i]):
 					score = score + 1
 
-			print test_doc
+
 			# print wordFile
 			(f1_b3, rec_b3, prec_b3, f1_muc, rec_muc, prec_muc, f1_ceaf, rec_ceaf, prec_ceaf) = F1_scores(cluster_data, cluster_pred)
 			# print score, rec, prec, (score*100.0)/TRAINING_SIZE
@@ -182,6 +178,10 @@ with tf.Session() as sess:
 			eval_f1_ceaf += f1_ceaf
 			eval_rec_ceaf += rec_ceaf
 			eval_prec_ceaf += prec_ceaf
+			# print test_doc
+			# print cluster_data
+			# print cluster_pred
+			# print f1_b3, f1_muc, f1_ceaf
 			num_files += 1
 
 		print "Trial", iteration_count, ":"
@@ -198,6 +198,6 @@ with tf.Session() as sess:
 		print "Macro-ave CEAF precision :", eval_prec_ceaf/num_files
 		print "Macro-ave CEAF F1 :", eval_f1_ceaf/num_files
 
-	if (SAVE == True):
-		saver.save(sess, CKPT_PATH)
-	print "OVER"
+		if (SAVE == True):
+			saver.save(sess, CKPT_PATH)
+		print "OVER"

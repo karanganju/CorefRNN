@@ -103,7 +103,7 @@ with tf.Session() as sess:
 		saver.restore(sess, CKPT_PATH)
 	for iteration_count in range(ITERATION_COUNT):
 		for ind, train_doc in enumerate(train_wordfiles):
-			
+
 			wordFile = TRAIN_DIR + train_doc
 			mentionFile = wordFile.replace("wordsList", "mentionsList")
 			try:
@@ -121,6 +121,8 @@ with tf.Session() as sess:
 
 				sess.run(train_op, feed_dict={Phia_x: mentionFeats[i].reshape(1,PHIA_FEATURE_LEN), Phip_x: getComplexPairFeats(i, mentionFeats, W2V_SIZE), Y_antecedent: latent_antecedents})
 		
+			print "Training :",ind+1,"/",len(train_wordfiles)
+
 
 		eval_prec_b3 = 0
 		eval_rec_b3 = 0
@@ -180,6 +182,7 @@ with tf.Session() as sess:
 			eval_rec_ceaf += rec_ceaf
 			eval_prec_ceaf += prec_ceaf
 			num_files += 1
+			print "Testing :",ind+1,"/",len(train_wordfiles)
 
 		
 		print "Trial", iteration_count, ":"
