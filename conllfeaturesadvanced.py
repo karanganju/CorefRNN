@@ -5,7 +5,7 @@ import random
 from nltk.corpus import names
 import nltk
 import itertools
-
+import time
 def gender_features(word):
     return {'suffix1': word[-1:], 'suffix2': word[-2:], 'last_is_vowel' : (word[-1] in 'aeiouy')}
 
@@ -277,7 +277,8 @@ def getComplexPairFeats(idx,mentionFeats,size):
     MentionDiff = np.zeros((1,1))
     StringMatch = np.zeros((1,1))
     # print(np.shape(dist), np.shape(BasicMentionFeats), np.shape(BasicAnteFeats), np.shape(MentionDiff))
-    ComplexPairWiseFeats = np.hstack((dist, BasicMentionFeats, BasicAnteFeats, MentionDiff, StringMatch))
+    temp = np.hstack((dist, BasicMentionFeats, BasicAnteFeats, MentionDiff, StringMatch))
+    ComplexPairWiseFeats = np.zeros((idx,np.shape(temp)[1]))
     flag = 0
     for pidx in range(0,idx):
         BasicMentionFeats = mentionFeats[idx].reshape((1, siz))
@@ -289,13 +290,8 @@ def getComplexPairFeats(idx,mentionFeats,size):
         MentionDiff[0] = abs(idx-pidx)
         bool = np.array_equal(mentionFeats[idx][0:size],mentionFeats[idx][0:size])
         StringMatch[0] = int(bool)
-        if flag == 1:
-           temp = np.hstack((dist.reshape((1,size)),BasicMentionFeats,BasicAnteFeats.reshape((1,siz)),MentionDiff, StringMatch ))
-           ComplexPairWiseFeats = np.vstack((ComplexPairWiseFeats,temp))
-        else:
-            ComplexPairWiseFeats = np.hstack((dist.reshape((1,size)),BasicMentionFeats,BasicAnteFeats.reshape((1,siz)),MentionDiff, StringMatch))
-            flag = 1
-        # print(dist)
+        temp = np.hstack((dist.reshape((1,size)),BasicMentionFeats,BasicAnteFeats.reshape((1,siz)),MentionDiff, StringMatch ))
+        ComplexPairWiseFeats[pidx] = temp
     return ComplexPairWiseFeats
 
 def getPairFeats(idx,mentionFeats,size):
@@ -332,6 +328,9 @@ if __name__ == '__main__':
     print(np.shape(MentionFeats))
 
     for idx in range(np.shape(MentionFeats)[0]):
+        start = time.time()
         ComplexPairWiseFeats = getComplexPairFeats(idx,MentionFeats,size)
+        end = time.time()
+        print(idx, end - start)
         print(ComplexPairWiseFeats)
-        # print(np.shape(ComplexPairWiseFeats))
+        print(np.shape(ComplexPairWiseFeats))
