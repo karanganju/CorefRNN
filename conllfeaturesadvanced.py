@@ -239,7 +239,7 @@ def getMentionFeats2(MentionFile, WordsFile, min_count, size, window):
                 Gender = 1 # Gender is female
             else:
                 Gender = 0
-        elif  (len(set_tags) == 1 and "NNP" in set_tags):
+        elif  (len(set_tags) == 1 and "NNPS" in set_tags):
             POSTag = POS_id["Proper Noun"]
             MentionNumber = 1  # Plural
             Gender = 2 # Unknown Gender
@@ -251,6 +251,14 @@ def getMentionFeats2(MentionFile, WordsFile, min_count, size, window):
             POSTag = POS_id["Nominal Noun"]
             MentionNumber = 1  # Plural
             Gender = 2
+        elif (len(set_tags) != 1 and "NNP" in set_tags):
+            POSTag = POS_id["Proper Noun"]
+            MentionNumber = 0  # Plural
+            Gender = 2  # Unknown Gender
+        elif (len(set_tags) != 1 and "NNPS" in set_tags):
+            POSTag = POS_id["Proper Noun"]
+            MentionNumber = 1  # Plural
+            Gender = 2  # Unknown Gender
         else:
             POSTag = POS_id["Unknown"]
             MentionNumber = 3  # Plural
@@ -324,7 +332,10 @@ if __name__ == '__main__':
     size = 200
     window = 5
 
+    start = time.time()
     MentionFeats = getMentionFeats2("mentionsList1.txt","wordsList1.txt",count,size,window)
+    end = time.time()
+    print(end - start)
     print(np.shape(MentionFeats))
 
     for idx in range(np.shape(MentionFeats)[0]):
@@ -332,5 +343,5 @@ if __name__ == '__main__':
         ComplexPairWiseFeats = getComplexPairFeats(idx,MentionFeats,size)
         end = time.time()
         print(idx, end - start)
-        print(ComplexPairWiseFeats)
-        print(np.shape(ComplexPairWiseFeats))
+        # print(ComplexPairWiseFeats)
+        # print(np.shape(ComplexPairWiseFeats))
