@@ -5,7 +5,7 @@ import random
 from nltk.corpus import names
 import nltk
 import itertools
-
+import time
 def gender_features(word):
     return {'suffix1': word[-1:], 'suffix2': word[-2:], 'last_is_vowel' : (word[-1] in 'aeiouy')}
 
@@ -106,14 +106,14 @@ def getMentionFeats(MentionFile, WordsFile, min_count, size, window):
 
         set_tags = set(tags)
 
-        if (len(set_tags) == 1 and "NNP" in set_tags):
+        if ("NNP" in set_tags):
             POSTag = POS_id["Proper Noun"]
             MentionNumber = 0  # Singular
             if (classifier.classify(gender_features(name)) == "female"):
                 Gender = 1  # Gender is female
             else:
                 Gender = 0
-        elif (len(set_tags) == 1 and "NNP" in set_tags):
+        elif ("NNPS" in set_tags):
             POSTag = POS_id["Proper Noun"]
             MentionNumber = 1  # Plural
             Gender = 2  # Unknown Gender
@@ -205,9 +205,9 @@ def getMentionFeats2(MentionFile, WordsFile, min_count, size, window):
         Label = "None"
         tree = nltk.ne_chunk(pts, binary=False)
         traverse(tree, Label, WordsList, TagsList, NERTags)
-    print(len(WordsList))
-    print(len(TagsList))
-    print(len(NERTags))
+    # print(len(WordsList))
+    # print(len(TagsList))
+    # print(len(NERTags))
         # tree.draw()
 
     # POSTagged_words = list(itertools.chain.from_iterable(POSTagged_wordsn))
@@ -279,7 +279,7 @@ def getMentionFeats2(MentionFile, WordsFile, min_count, size, window):
                 Gender = 1 # Gender is female
             else:
                 Gender = 0
-        elif  (len(set_tags) == 1 and "NNP" in set_tags):
+        elif  (len(set_tags) == 1 and "NNPS" in set_tags):
             POSTag = POS_id["Proper Noun"]
             MentionNumber = 1  # Plural
             Gender = 2 # Unknown Gender
@@ -291,6 +291,14 @@ def getMentionFeats2(MentionFile, WordsFile, min_count, size, window):
             POSTag = POS_id["Nominal Noun"]
             MentionNumber = 1  # Plural
             Gender = 2
+        elif (len(set_tags) != 1 and "NNP" in set_tags):
+            POSTag = POS_id["Proper Noun"]
+            MentionNumber = 0  # Plural
+            Gender = 2  # Unknown Gender
+        elif (len(set_tags) != 1 and "NNPS" in set_tags):
+            POSTag = POS_id["Proper Noun"]
+            MentionNumber = 1  # Plural
+            Gender = 2  # Unknown Gender
         else:
             POSTag = POS_id["Unknown"]
             MentionNumber = 3  # Plural
@@ -302,7 +310,7 @@ def getMentionFeats2(MentionFile, WordsFile, min_count, size, window):
         for id in range(len(NERbits)):
             if NERTestTag[id] in NERtagset:
                 NERbits[id] = 1
-                print(NERTestTag[id])
+                # print(NERTestTag[id])
         # print(NERbits)
         # To choose features change this line
         total = np.hstack((MentionHead,FirstMention,LastMention,PrecWord,FollWord,NumberOfWords,MentionSentenceidx,POSTag, MentionNumber, Gender, NERbits ))
@@ -320,14 +328,16 @@ def getComplexPairFeats(idx,mentionFeats,size):
     siz = len(mentionFeats[idx])
 
     dist = np.zeros((1,size))
-    BasicMentionFeats = mentionFeats[idx].reshape((1,siz))
+    BasicMentionFeats = np.zeros((1,siz))
     BasicAnteFeats = np.zeros((1,siz))
     MentionDiff = np.zeros((1,1))
     StringMatch = np.zeros((1,1))
     # print(np.shape(dist), np.shape(BasicMentionFeats), np.shape(BasicAnteFeats), np.shape(MentionDiff))
-    ComplexPairWiseFeats = np.hstack((dist, BasicMentionFeats, BasicAnteFeats, MentionDiff, StringMatch))
+    temp = np.hstack((dist, BasicMentionFeats, BasicAnteFeats, MentionDiff, StringMatch))
+    ComplexPairWiseFeats = np.zeros((idx,np.shape(temp)[1]))
     flag = 0
     for pidx in range(0,idx):
+        BasicMentionFeats = mentionFeats[idx].reshape((1, siz))
         feat1 = mentionFeats[idx][0:size]
         feat2 = mentionFeats[pidx][0:size]
         dist = feat1 - feat2
@@ -336,14 +346,39 @@ def getComplexPairFeats(idx,mentionFeats,size):
         MentionDiff[0] = abs(idx-pidx)
         bool = np.array_equal(mentionFeats[idx][0:size],mentionFeats[idx][0:size])
         StringMatch[0] = int(bool)
-        if flag == 1:
-           temp = np.hstack((dist.reshape((1,size)),BasicMentionFeats,BasicAnteFeats.reshape((1,siz)),MentionDiff, StringMatch ))
-           ComplexPairWiseFeats = np.vstack((ComplexPairWiseFeats,temp))
-        else:
-            ComplexPairWiseFeats = np.hstack((dist.reshape((1,size)),BasicMentionFeats,BasicAnteFeats.reshape((1,siz)),MentionDiff, StringMatch))
-            flag = 1
-        # print(dist)
+        temp = np.hstack((dist.reshape((1,size)),BasicMentionFeats,BasicAnteFeats.reshape((1,siz)),MentionDiff, StringMatch ))
+        ComplexPairWiseFeats[pidx] = temp
     return ComplexPairWiseFeats
+
+# def getComplexPairFeats(idx,mentionFeats,size):
+#     PairwiseFeats = np.zeros((idx, size))
+#     siz = len(mentionFeats[idx])
+#
+#     dist = np.zeros((1,size))
+#     BasicMentionFeats = mentionFeats[idx].reshape((1,siz))
+#     BasicAnteFeats = np.zeros((1,siz))
+#     MentionDiff = np.zeros((1,1))
+#     StringMatch = np.zeros((1,1))
+#     # print(np.shape(dist), np.shape(BasicMentionFeats), np.shape(BasicAnteFeats), np.shape(MentionDiff))
+#     ComplexPairWiseFeats = np.hstack((dist, BasicMentionFeats, BasicAnteFeats, MentionDiff, StringMatch))
+#     flag = 0
+#     for pidx in range(0,idx):
+#         feat1 = mentionFeats[idx][0:size]
+#         feat2 = mentionFeats[pidx][0:size]
+#         dist = feat1 - feat2
+#         PairwiseFeats[pidx] = dist
+#         BasicAnteFeats =  mentionFeats[pidx]
+#         MentionDiff[0] = abs(idx-pidx)
+#         bool = np.array_equal(mentionFeats[idx][0:size],mentionFeats[idx][0:size])
+#         StringMatch[0] = int(bool)
+#         if flag == 1:
+#            temp = np.hstack((dist.reshape((1,size)),BasicMentionFeats,BasicAnteFeats.reshape((1,siz)),MentionDiff, StringMatch ))
+#            ComplexPairWiseFeats = np.vstack((ComplexPairWiseFeats,temp))
+#         else:
+#             ComplexPairWiseFeats = np.hstack((dist.reshape((1,size)),BasicMentionFeats,BasicAnteFeats.reshape((1,siz)),MentionDiff, StringMatch))
+#             flag = 1
+#         # print(dist)
+#     return ComplexPairWiseFeats
 
 def getPairFeats(idx,mentionFeats,size):
     PairwiseFeats = np.zeros((idx, size))
@@ -397,6 +432,9 @@ if __name__ == '__main__':
     print(np.shape(MentionFeats))
 
     for idx in range(np.shape(MentionFeats)[0]):
+        start = time.time()
         ComplexPairWiseFeats = getComplexPairFeats(idx,MentionFeats,size)
-        print(np.shape(ComplexPairWiseFeats))
+        end = time.time()
+        print(idx, end - start)
+        # print(np.shape(ComplexPairWiseFeats))
 
