@@ -193,7 +193,7 @@ def getMentionFeats2(MentionFile, WordsFile, min_count, size, window):
     # print(unzipped[0])
     WordsList = list(unzipped[0])
     TagsList = list(unzipped[1])
-
+    MentionSentenceidx = 0
     file = open(MentionFile, "r")
     mentionFeats = []
     flag = 0
@@ -228,7 +228,7 @@ def getMentionFeats2(MentionFile, WordsFile, min_count, size, window):
         PrecWord = model[WordsList[series[0][0]-1]]
         FollWord = model[WordsList[series[0][1]]]
         NumberOfWords = len(line)
-        MentionSentenceidx = i
+        MentionSentenceidx += 1
 
         set_tags = set(tags)
 
@@ -266,7 +266,9 @@ def getMentionFeats2(MentionFile, WordsFile, min_count, size, window):
 
         # To choose features change this line
         total = np.hstack((MentionHead,FirstMention,LastMention,PrecWord,FollWord,NumberOfWords,MentionSentenceidx,POSTag, MentionNumber, Gender ))
-
+        # print("no. words",NumberOfWords)
+        # print("id",MentionSentenceidx)
+        # print("max_val", np.amax(total))
         if flag == 1:
             mentionFeats = np.vstack((mentionFeats,total))
         else:
@@ -299,6 +301,7 @@ def getComplexPairFeats(idx,mentionFeats,size):
         bool = np.array_equal(mentionFeats[idx][0:size],mentionFeats[idx][0:size])
         StringMatch[0] = int(bool)
         temp = np.hstack((dist.reshape((1,size)),BasicMentionFeats,BasicAnteFeats.reshape((1,siz)),MentionDiff, StringMatch ))
+        # print("max_val",np.amax(temp))
         ComplexPairWiseFeats[pidx] = temp
     return ComplexPairWiseFeats
 
@@ -335,13 +338,13 @@ if __name__ == '__main__':
     start = time.time()
     MentionFeats = getMentionFeats2("mentionsList1.txt","wordsList1.txt",count,size,window)
     end = time.time()
-    print(end - start)
-    print(np.shape(MentionFeats))
+    # print(end - start)
+    # print(np.shape(MentionFeats))
 
     for idx in range(np.shape(MentionFeats)[0]):
         start = time.time()
         ComplexPairWiseFeats = getComplexPairFeats(idx,MentionFeats,size)
         end = time.time()
-        print(idx, end - start)
+        # print(idx, end - start)
         # print(ComplexPairWiseFeats)
         # print(np.shape(ComplexPairWiseFeats))
